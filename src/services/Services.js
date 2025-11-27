@@ -1,5 +1,5 @@
 class Services {
-    contructor(model) {
+    constructor(model) {
         this.model = model;
     }
 
