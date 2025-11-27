@@ -1,11 +1,15 @@
 class Services {
-    contructor(modelName) {
-        this.modelName = modelName;
+    contructor(model) {
+        this.model = model;
     }
 
     async createRecord(data) {
-        const record = new this.modelName(data);
-        await record.save();
+        const record = new this.model(data);
+        return await record.save();
+    }
+
+    async getAllRecords() {
+        return await this.model.find();
     }
 }
 
