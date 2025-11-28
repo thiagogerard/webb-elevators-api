@@ -5,7 +5,10 @@ class Controller {
 
     async getAll(req, res) {
         try{
-            const recordList = await this.entityService.getAllRecords();
+            const { page = 1, limit = 10, ...filters } = req.query;
+            const pageNum = parseInt(page);
+            const limitNum = parseInt(limit);
+            const recordList = await this.entityService.getAllRecords(filters, pageNum, limitNum);
             return res.status(200).json(recordList);
         }catch(err) {
             return res.status(500).json({ error: err.message });

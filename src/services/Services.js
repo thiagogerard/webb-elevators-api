@@ -3,8 +3,9 @@ class Services {
         this.model = model;
     }
 
-    async getAllRecords() {
-        return await this.model.find();
+    async getAllRecords(query={}, page=1, limit=10) {
+        const skip = (page - 1) * limit;
+        return await this.model.find(query).skip(skip).limit(limit);
     }
 
     async getRecordById(id) {
