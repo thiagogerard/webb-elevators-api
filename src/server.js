@@ -2,7 +2,7 @@ const connectDB = require('./config/db.js');
 const app = require('./app.js');
 const net = require('net');
 const Telemetry = require('./models/telemetry.js');
-const { timeStamp } = require('console');
+const { z } = require('zod');
 require('dotenv').config();
 
 connectDB();
@@ -10,7 +10,13 @@ connectDB();
 const PORT = process.env.PORT;
 
 app.listen(PORT, () => {
-    console.log(`Server runnign on port ${PORT}`);
+    console.log(`HTTP API runnign on port ${PORT}`);
+});
+
+const TelemetrySchema = z.object({
+    elevatorId: z.number().int().positive(),
+    floor: z.number().int().min(0).max(10),
+    status: z.number().int().min(1).max(3)
 });
 
 const TCP_PORT = 4000;
@@ -25,27 +31,35 @@ const tcpServer = net.createServer((socket) => {
                 return;
             }
 
-            const elevatorId = data.readUInt8(1);
-            const floor = data.readUInt8(2);
-            const status = data.readUInt8(3);
+            const rawData = {
+                elevatorId: data.readUInt8(1),
+                floor: data.readUInt8(2),
+                status: data.readUInt8(3)
+            }
 
-            console.log(`TCP received | Elevator: ${elevatorId} | Floor: ${floor} | Status: ${status}`);
+            const cleanData = TelemetrySchema.parse(rawData);
+
+            console.log(`TCP received | Elevator: ${cleanData.elevatorId} | Floor: ${cleanData.floor} | Status: ${cleanData.status}`);
 
             const now = new Date();
             const startOfHour = new Date(now);
             startOfHour.setMinutes(0, 0, 0);
 
             await Telemetry.updateOne(
-                { elevatorId, date: startOfHour },
+                { elevatorId: cleanData.elevatorId, date: startOfHour },
                 {
-                    $push: { readings: { timeStamp: now, floor, status } },
+                    $push: { readings: { timeStamp: now, floor: cleanData.floor, status: cleanData.status } },
                     $inc: { count: 1 }
                 },
                 { upsert: true }
             );
 
         } catch(err) {
-            console.error('Error proscessing telemetry:', err.message);
+            if(err instanceof z.ZodError) {
+                console.error('Safety Lock (Zod):', err.issues);
+            } else {
+                console.error('Generic error', err.message);
+            }
         }
     });
 
